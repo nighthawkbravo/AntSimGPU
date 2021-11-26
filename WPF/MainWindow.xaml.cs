@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -14,6 +13,8 @@ using System.Windows.Threading;
 using WpfAntSimulator.SimObjects;
 using Bitmap = System.Drawing.Bitmap;
 using Point = System.Drawing.Point;
+using Microsoft.AspNetCore.SignalR.Client;
+using System.Threading.Tasks;
 
 namespace WpfAntSimulator
 {
@@ -156,34 +157,25 @@ namespace WpfAntSimulator
 
         private const int width = 1127;
         private const int height = 814;
-
         private int numOfAnts;
-
         private Bitmap bm;
         private Bitmap bmStatic;
         private Bitmap mergedBMs;
-
         private string mylightRed = "#FF5555";
         private string mylightGreen = "#42f548";
-
         public delegate void nextSimulationTick();
         private bool continueCalculating;
         private bool simInit = false;
         Stopwatch stopwatch = new Stopwatch();
-
         private Random rnd;
-
-        //private Colony OriginalColony;
         private List<ISimObject> toBeRemoved = new List<ISimObject>();
         private Point center = new Point(1126 / 2, 814 / 2);
-
         private static readonly Regex _regex = new Regex("[^0-9]+"); //regex that matches disallowed text
-
         private ISimObject selectedObject;
-
         private int tick = 0;
-
         private System.Windows.Media.BrushConverter bc = new System.Windows.Media.BrushConverter();
+
+        private HubConnection connection;
 
 
         public MainWindow()
@@ -197,6 +189,25 @@ namespace WpfAntSimulator
             Globals.toBeAdded = new List<ISimObject>();
 
             rnd = new Random(Guid.NewGuid().GetHashCode());
+
+            connection = new HubConnectionBuilder()
+                .WithUrl("ws://127.0.0.1:5000")
+                .Build();
+
+            connection.Closed += async (error) =>
+            {
+                await Task.Delay(new Random().Next(0, 5) * 1000);
+                await connection.StartAsync();
+            };
+
+            connection.On<string, string>("ReceiveMessage", (user, message) =>
+            {
+                this.Dispatcher.Invoke(() =>
+                {
+                    var newMessage = $"{user}: {message}";
+                    
+                });
+            });
 
             numOfAnts = int.Parse(AntAmount.Text);
             bmStatic = new Bitmap(width, height);
@@ -341,6 +352,9 @@ namespace WpfAntSimulator
         }
         private void InitSim()
         {
+            // Make a Websocket connection and send a message "Hello from me"
+            
+
             for (int i = 0; i < numOfAnts; ++i)
             {
                 // Random rand = new Random(Guid.NewGuid().GetHashCode()); // Very useful for generating random objects with random seeds!
